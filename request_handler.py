@@ -1,8 +1,8 @@
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from entries import get_all_entries, get_single_entry
-from moods.request import get_all_moods
+from entries import get_all_entries, get_single_entry, delete_entry, get_entries_by_search_term
+from moods import get_all_moods
 
 # Here's a class. It inherits from another class.
 # For now, think of a class as a container for functions that
@@ -93,10 +93,18 @@ class HandleRequests(BaseHTTPRequestHandler):
                 else:
                     response = f"{get_all_entries()}"
 
-            if resource == "moods":
+            elif resource == "moods":
                 response = f"{get_all_moods()}"
 
+        elif len(parsed) == 3:
+            ( resource, key, value ) = parsed
+
+            if key == "q" and resource == 'entries':
+                response = get_entries_by_search_term(value)
+
+
         self.wfile.write(response.encode())
+
 
 #     # Here's a method on the class that overrides the parent's method.
 #     # It handles any POST request.
@@ -144,27 +152,18 @@ class HandleRequests(BaseHTTPRequestHandler):
 
 #             self.wfile.write(f"{new_customer}".encode())
 
-#     def do_DELETE(self):
-#     # Set a 204 response code
-#         self._set_headers(204)
+    def do_DELETE(self):
+    # Set a 204 response code
+        self._set_headers(204)
 
-#         # Parse the URL
-#         (resource, id) = self.parse_url(self.path)
+        # Parse the URL
+        (resource, id) = self.parse_url(self.path)
 
-#         # Delete a single entry from the list
-#         if resource == "entrys":
-#             delete_entry(id)
+        # Delete a single entry from the list
+        if resource == "entries":
+            delete_entry(id)
         
-#         if resource == "locations":
-#             delete_location(id)
-        
-#         if resource == "employees":
-#             delete_employee(id)
-
-#         if resource == "customers":
-#             delete_customer(id)
-
-#         # Encode the new entry and send in response
+        # Encode the new entry and send in response
 #         self.wfile.write("".encode())
 
 #         # Here's a method on the class that overrides the parent's method.

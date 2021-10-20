@@ -1,6 +1,6 @@
 import sqlite3
 import json
-from models import Entry 
+from models import Entry, Mood
 
 
 def get_all_entries():
@@ -13,7 +13,16 @@ def get_all_entries():
 
         # Write the SQL query to get the information you want
         db_cursor.execute("""
-        SELECT * FROM entries 
+        SELECT 
+            e.id,
+            e.concept,
+            e.entry,
+            e.date,
+            e.mood_id,
+            m.label entry_mood
+        from Entries e
+        join Moods m
+            on m.id = e.mood_id
         """)
 
         # Initialize an empty list to hold all entry representations
@@ -31,7 +40,9 @@ def get_all_entries():
             # entry class above.
             entry = Entry(row['id'], row['concept'], row['entry'], 
                                 row['mood_id'], row['date'])
+            mood = Mood(row['id'], row['entry_mood'])
 
+            entry.mood = mood.__dict__
             entries.append(entry.__dict__)
 
     # Use `json` package to properly serialize list as JSON
@@ -91,22 +102,16 @@ def create_employee(new_entry):
 
 
 def delete_entry(id):
-    # Initial -1 value for entry index, in case one isn't found
-    entry_index = -1
+    with sqlite3.connect("./dailyjournal.db") as conn:
+        db_cursor = conn.cursor()
 
-    # Iterate the entries list, but use enumerate() so that you
-    # can access the index value of each item
-    for index, entry in enumerate(entries):
-        if entry["id"] == id:
-            # Found the entry. Store the current index.
-            entry_index = index
+        db_cursor.execute("""
+        DELETE FROM entries
+        WHERE id = ?
+        """, (id, ))
 
-    # If the entry was found, use pop(int) to remove it from list
-    if entry_index >= 0:
-        entries.pop(entry_index)
 
-def get_entries_by_email(mood):
-
+def get_entries_by_search_term(search_term):
     with sqlite3.connect("./dailyjournal.db") as conn:
         conn.row_factory = sqlite3.Row
         db_cursor = conn.cursor()
@@ -114,20 +119,20 @@ def get_entries_by_email(mood):
         # Write the SQL query to get the information you want
         db_cursor.execute("""
         select
-            c.id,
-            c.concept,
-            c.entry,
-            c.mood,
-            c.date
-        from entry c
-        WHERE c.mood = ?
-        """, ( mood, ))
+            e.id,
+            e.concept,
+            e.entry,
+            e.mood_id,
+            e.date
+        from entries e
+        WHERE e.concept like ?
+        """, ( f'%{search_term}%', ))
 
-        entries = []
+        searched_entries = []
         dataset = db_cursor.fetchall()
 
         for row in dataset:
-            entry = entry(row['id'], row['concept'], row['entry'], row['mood'] , row['date'])
-            entries.append(entry.__dict__)
+            entry = Entry(row['id'], row['concept'], row['entry'], row['mood_id'] , row['date'])
+            searched_entries.append(entry.__dict__)
 
-    return json.dumps(entries)
+    return json.dumps(searched_entries)
