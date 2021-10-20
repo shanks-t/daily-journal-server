@@ -40,7 +40,7 @@ def get_all_entries():
             # entry class above.
             entry = Entry(row['id'], row['concept'], row['entry'], 
                                 row['mood_id'], row['date'])
-            mood = Mood(row['id'], row['entry_mood'])
+            mood = Mood(row['mood_id'], row['entry_mood'])
 
             entry.mood = mood.__dict__
             entries.append(entry.__dict__)
@@ -77,17 +77,17 @@ def get_single_entry(id):
 
         return json.dumps(entry.__dict__)
 
-def create_employee(new_entry):
+def create_journal_entry(new_entry):
     with sqlite3.connect("./dailyjournal.db") as conn:
         db_cursor = conn.cursor()
 
         db_cursor.execute("""
-        INSERT INTO Employee
-            ( name, address, animal_id, location_id )
-        VALUES
-            ( ?, ?, ?, ?);
-        """, (new_entry['concept'], new_entry['entry'],
-            new_entry['mood_id'], new_entry['date'], ))
+        insert into Entries
+            ( concept, entry, date, mood_id )
+        values
+            (?, ?, ?, ?);
+        """, (new_entry['concept'], new_entry['entry'], new_entry['date'], new_entry['moodId'], ))
+
 
         # The `lastrowid` property on the cursor will return
         # the primary key of the last thing that got added to
@@ -99,6 +99,7 @@ def create_employee(new_entry):
         # primary key in the response.
         new_entry['id'] = id
 
+        return json.dumps(new_entry)
 
 
 def delete_entry(id):
