@@ -10,3 +10,4 @@ class Entry():
         self.date = date
         self.moodId = mood_id
         self.mood = None
+        self.tags = []

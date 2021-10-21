@@ -1,6 +1,7 @@
 import sqlite3
 import json
-from models import Entry, Mood
+import datetime
+from models import Entry, Mood, Tag
 
 
 def get_all_entries():
@@ -38,9 +39,28 @@ def get_all_entries():
             # Note that the database fields are specified in
             # exact order of the parameters defined in the
             # entry class above.
-            entry = Entry(row['id'], row['concept'], row['entry'], 
-                                row['mood_id'], row['date'])
+            entry = Entry(
+                row['id'], 
+                row['concept'], 
+                row['entry'], 
+                row['mood_id'], 
+                row['date'], 
+            )
+
             mood = Mood(row['mood_id'], row['entry_mood'])
+
+            db_cursor.execute("""
+            select t.id, t.name
+            from Entries e
+            join Entrytag et on e.id = et.entry_id
+            join Tags t on t.id = et.tag_id
+            where e.id = ?
+            """, (entry.id, ))
+
+            tag_set = db_cursor.fetchall()
+            for tag_data in tag_set:
+                tag = Tag(tag_data['id'], tag_data['name'])
+                entry.tags.append(tag.__dict__)
 
             entry.mood = mood.__dict__
             entries.append(entry.__dict__)
@@ -86,7 +106,7 @@ def create_journal_entry(new_entry):
             ( concept, entry, date, mood_id )
         values
             (?, ?, ?, ?);
-        """, (new_entry['concept'], new_entry['entry'], new_entry['date'], new_entry['moodId'], ))
+        """, (new_entry['concept'], new_entry['entry'], datetime.datetime.now(), new_entry['moodId'] ))
 
 
         # The `lastrowid` property on the cursor will return
@@ -98,6 +118,14 @@ def create_journal_entry(new_entry):
         # was sent by the client so that the client sees the
         # primary key in the response.
         new_entry['id'] = id
+
+        
+        for tag in new_entry['tags']:
+            db_cursor.execute("""
+                insert into EntryTag
+                (entry_id, tag_id)
+                values (?, ?)
+                """, (id, tag))
 
         return json.dumps(new_entry)
 
@@ -137,3 +165,29 @@ def get_entries_by_search_term(search_term):
             searched_entries.append(entry.__dict__)
 
     return json.dumps(searched_entries)
+
+def update_entry(id, updated_entry):
+    with sqlite3.connect("./dailyjournal.db") as conn:
+        db_cursor = conn.cursor()
+
+        db_cursor.execute("""
+        update Entries
+            set
+                concept = ?,
+                entry = ?,
+                mood_id = ?,
+                date = ?
+        where id = ?
+        """, (updated_entry['concept'], updated_entry['entry'],
+              updated_entry['moodId'], updated_entry['date'], id ))
+
+        # Were any rows affected?
+        # Did the client send an `id` that exists?
+        rows_affected = db_cursor.rowcount
+
+    if rows_affected == 0:
+        # Forces 404 response by main module
+        return False
+    else:
+        # Forces 204 response by main module
+        return True

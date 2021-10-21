@@ -14,3 +14,25 @@ from Entries e
 join Moods m 
     on m.id = e.mood_id
     
+create table 'Entrytag' (
+    'id' integer not null primary key AUTOINCREMENT,
+    'entry_id' integer not null,
+    'tag_id' integer not null,
+    foreign key('entry_id') references 'Entries'('id'),
+    foreign key('tag_id') references 'Tags'('id')
+)
+    
+
+create table 'Tag' (
+    'id' integer not null primary key AUTOINCREMENT,
+    'name' text
+)
+
+insert into 'Tag' values (null, 'Front End');
+insert into 'Tag' values (null, 'Back End');
+insert into 'Tag' values (null, 'Database');
+
+
+alter table Entries
+delete column 'tags' integer 
+
