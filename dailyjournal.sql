@@ -36,3 +36,7 @@ insert into 'Tag' values (null, 'Database');
 alter table Entries
 delete column 'tags' integer 
 
+alter table Tags add column 'id' integer primary key
+alter table Tags add column 'name' text not null
+
+

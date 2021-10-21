@@ -75,26 +75,48 @@ def get_single_entry(id):
         conn.row_factory = sqlite3.Row
         db_cursor = conn.cursor()
 
+        
         # Use a ? parameter to inject a variable's value
         # into the SQL statement.
         db_cursor.execute("""
-        SELECT
-            a.id,
-            a.concept,
-            a.entry,
-            a.mood_id,
-            a.date
-        FROM entries a
-        WHERE a.id = ?
+        SELECT 
+            e.id,
+            e.concept,
+            e.entry,
+            e.date,
+            e.mood_id,
+            m.label entry_mood
+        from Entries e
+        join Moods m
+            on m.id = e.mood_id
+        where e.id = ?
         """, ( id, ))
 
         # Load the single result into memory
         data = db_cursor.fetchone()
 
-        # Create an entry instance from the current row
+          # Create an entry instance from the current data
         entry = Entry(data['id'], data['concept'], data['entry'],
                             data['mood_id'], data['date'])
 
+        db_cursor.execute("""
+            select t.id, t.name
+            from Entries e
+            join Entrytag et on e.id = et.entry_id
+            join Tags t on t.id = et.tag_id
+            where e.id = ?
+            """, ( id, ))
+
+
+        tag_set = db_cursor.fetchall()
+        for tag_data in tag_set:
+            tag = Tag(tag_data['id'], tag_data['name'])
+            entry.tags.append(tag.id)
+
+
+        mood = Mood(data['mood_id'], data['entry_mood'])
+      
+        entry.mood = mood.__dict__
         return json.dumps(entry.__dict__)
 
 def create_journal_entry(new_entry):
@@ -181,6 +203,13 @@ def update_entry(id, updated_entry):
         """, (updated_entry['concept'], updated_entry['entry'],
               updated_entry['moodId'], updated_entry['date'], id ))
 
+        
+        for tag in updated_entry['tags']:
+            db_cursor.execute("""
+                insert into EntryTag
+                (entry_id, tag_id)
+                values (?, ?)
+                """, (id, tag))
         # Were any rows affected?
         # Did the client send an `id` that exists?
         rows_affected = db_cursor.rowcount
